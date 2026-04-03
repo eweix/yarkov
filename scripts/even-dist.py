@@ -9,7 +9,7 @@ main execution:
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from probate import plot_mass_distributions, plot_tree, simulate_sample_lineage
+from probate import plot_mass_distributions, plot_tree, simulate_sampled_lineage
 
 # %% run main simulation
 

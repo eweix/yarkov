@@ -1,6 +1,5 @@
 # %% import libraries
 import matplotlib.pyplot as plt
-import pandas as pd
 import seaborn as sns
 
 from probate import plot_mass_distributions, plot_tree, simulate_sample_lineage

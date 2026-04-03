@@ -153,3 +153,30 @@ def simulate_sampled_lineage(
         lineage = lineage_df.to_dict("records")
 
     return pd.DataFrame(lineage)
+
+
+def reconstruct_lineage(
+    cell: pd.Series,
+    sim_data: pd.DataFrame,
+    attribute: str,
+    lineage: np.ndarray | None,
+) -> np.ndarray:
+    """Takes a dataframe of all cells and a specific row from another dataframe, then searches through the cells to reconstruct a dataframe thingy with all of the lineages. Quite simple really."""
+
+    # make lineage array at beginning
+    if lineage is None:
+        lineage = np.ndarray(cell["gen"])
+
+    # update lineage array
+    lineage[cell["gen"]] = cell[attribute]
+
+    # recursively construct lineage information
+    if cell["gen"] == 0:
+        return lineage
+    elif cell["gen"] < 0:
+        raise Exception(
+            f"Expected a nonnegative integer for generation, got {cell['gen']}."
+        )
+    else:
+        parent_cell = sim_data[sim_data["id"] == cell["parent"]]
+        reconstruct_lineage(parent_cell, sim_data, attribute, lineage)

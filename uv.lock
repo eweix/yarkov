@@ -12,8 +12,8 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "asymmetric-inheritance-simulation",
     "probate",
+    "yarkov",
 ]
 
 [[package]]
@@ -33,37 +33,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/be/a5/8e3f9b6771b0b4085
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d2/39/e7eaf1799466a4aef85b6a4fe7bd175ad2b1c6345066aa33f1f58d4b18d0/asttokens-3.0.1-py3-none-any.whl", hash = "sha256:15a3ebc0f43c2d0a50eeafea25e19046c68398e487b9f1f5b517f7c0f40f976a", size = 27047, upload-time = "2025-11-15T16:43:16.109Z" },
 ]
-
-[[package]]
-name = "asymmetric-inheritance-simulation"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "matplotlib" },
-    { name = "numpy" },
-    { name = "pandas" },
-    { name = "probate" },
-    { name = "rich" },
-    { name = "seaborn" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "ipykernel" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "matplotlib", specifier = ">=3.10.8" },
-    { name = "numpy", specifier = ">=2.4.4" },
-    { name = "pandas", specifier = ">=3.0.2" },
-    { name = "probate", editable = "probate" },
-    { name = "rich", specifier = ">=14.3.3" },
-    { name = "seaborn", specifier = ">=0.13.2" },
-]
-
-[package.metadata.requires-dev]
-dev = [{ name = "ipykernel", specifier = ">=7.2.0" }]
 
 [[package]]
 name = "cffi"
@@ -1048,3 +1017,34 @@ sdist = { url = "https://files.pythonhosted.org/packages/35/a2/8e3becb46433538a3
 wheels = [
     { url = "https://files.pythonhosted.org/packages/68/5a/199c59e0a824a3db2b89c5d2dade7ab5f9624dbf6448dc291b46d5ec94d3/wcwidth-0.6.0-py3-none-any.whl", hash = "sha256:1a3a1e510b553315f8e146c54764f4fb6264ffad731b3d78088cdb1478ffbdad", size = 94189, upload-time = "2026-02-06T19:19:39.646Z" },
 ]
+
+[[package]]
+name = "yarkov"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "pandas" },
+    { name = "probate" },
+    { name = "rich" },
+    { name = "seaborn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "ipykernel" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "matplotlib", specifier = ">=3.10.8" },
+    { name = "numpy", specifier = ">=2.4.4" },
+    { name = "pandas", specifier = ">=3.0.2" },
+    { name = "probate", editable = "probate" },
+    { name = "rich", specifier = ">=14.3.3" },
+    { name = "seaborn", specifier = ">=0.13.2" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "ipykernel", specifier = ">=7.2.0" }]

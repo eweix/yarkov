@@ -1,5 +1,5 @@
 [project]
-name = "asymmetric-inheritance-simulation"
+name = "yarkov"
 version = "0.1.0"
 description = "Simulate protein inheritance across generations of cells"
 readme = "README.md"

@@ -1,15 +1,10 @@
-# %% import libraries
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib.colors import TwoSlopeNorm, to_hex
-from rich.progress import track
 
 
-# %% define visualization functions
 def generate_color_dict(paths: list[str], cmap="colorblind") -> dict[str, str]:
     if not paths:
         return {}
@@ -19,7 +14,7 @@ def generate_color_dict(paths: list[str], cmap="colorblind") -> dict[str, str]:
     return dict(zip(paths, colors))
 
 
-def plot_tree(df, ax, fig, M_crit=150):
+def plot_tree(df: pd.DataFrame, ax, fig, M_crit=150):
     coords = {}
     df = df.sort_values("gen")
     parent_state_map = df.set_index("id")["state"].to_dict()
@@ -95,7 +90,7 @@ def plot_tree(df, ax, fig, M_crit=150):
     plt.tight_layout()
 
 
-def plot_mass_distributions(df, ax, M_crit=150):
+def plot_mass_distributions(df: pd.DataFrame, ax, M_crit=150):
 
     sns.boxplot(
         data=df, x="gen", y="mass_protein1", whis=np.inf, color="lightgray", ax=ax

@@ -805,7 +805,6 @@ dependencies = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "rich" },
-    { name = "seaborn" },
 ]
 
 [package.metadata]
@@ -814,7 +813,6 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.4.4" },
     { name = "pandas", specifier = ">=3.0.2" },
     { name = "rich", specifier = ">=14.3.3" },
-    { name = "seaborn", specifier = ">=0.13.2" },
 ]
 
 [[package]]

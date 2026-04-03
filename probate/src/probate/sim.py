@@ -5,6 +5,20 @@ import pandas as pd
 from rich.progress import track
 
 
+def subsample_lineage(
+    df: pd.DataFrame,
+    sample_method: str | None = "random",
+    max_count: int = 50,
+) -> pd.DataFrame:
+    if sample_method == "random":
+        n_sample = min(len(df), max_count)
+        sampled_indices = np.random.choice(len(df), size=n_sample, replace=False)
+    else:
+        n_sample = min(len(df), max_count)
+        sampled_indices = np.random.choice(len(df), size=n_sample, replace=False)
+    return df.iloc[sampled_indices].reset_index(drop=True)
+
+
 def simulate_sampled_lineage(
     generations: int,
     k_syn: float,
@@ -14,7 +28,7 @@ def simulate_sampled_lineage(
     output_dir: str = "./sim_data",
     batch_save: bool = True,
     seed: int | None = None,
-    sample_method: str = "random",
+    sample_method: str | None = "random",
 ) -> pd.DataFrame:
     """
     Args:
@@ -25,7 +39,7 @@ def simulate_sampled_lineage(
         output_dir: Directory to save CSV files.
         batch_save: Whether to save each generation to CSV.
         seed: Random seed for reproducibility.
-        sample_method: Method for sampling cells: "random", "top_mass", or "above_threshold".
+        sample_method: Method for sampling cells: "random" or None.
 
     Returns:
         DataFrame with columns: id, parent, mass_protein1, mass_protein2, gen, state
@@ -124,32 +138,11 @@ def simulate_sampled_lineage(
         if batch_save:
             new_cells.to_csv(f"{output_dir}/gen_{g:03d}.csv", index=False)
 
-        if sample_method == "random":
-            n_sample = min(len(new_cells), max_cells)
-            sampled_indices = np.random.choice(
-                len(new_cells), size=n_sample, replace=False
-            )
-        elif sample_method == "top_mass":
-            n_sample = min(len(new_cells), max_cells)
-            sorted_indices = new_cells["mass_protein1"].nlargest(n_sample).index
-            sampled_indices = sorted_indices.tolist()
-        elif sample_method == "above_threshold":
-            above_thresh = new_cells[new_cells["mass_protein1"] >= M_crit]
-            if len(above_thresh) >= 2:
-                sampled_indices = above_thresh.index.tolist()
-            else:
-                n_sample = min(len(new_cells), max_cells)
-                sampled_indices = np.random.choice(
-                    len(new_cells), size=n_sample, replace=False
-                ).tolist()
-        else:
-            n_sample = min(len(new_cells), max_cells)
-            sampled_indices = np.random.choice(
-                len(new_cells), size=n_sample, replace=False
-            )
-
-        active_pool = new_cells.iloc[sampled_indices].reset_index(drop=True)
-
+        active_pool = subsample_lineage(
+            new_cells,
+            sample_method="random",
+            max_count=50,
+        )
         if len(active_pool) < 2:
             lineage_df = pd.concat(
                 [pd.DataFrame(lineage), new_cells], ignore_index=True

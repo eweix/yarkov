@@ -2,7 +2,12 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from probate import plot_mass_distributions, plot_tree, simulate_sample_lineage
+from probate import (
+    generate_color_dict,
+    plot_mass_distributions,
+    plot_tree,
+    simulate_sampled_lineage,
+)
 
 # %% this scenario will produce a long-tailed distribution of protein-rich cells
 df = simulate_sampled_lineage(generations=20, k_syn=100, M_crit=150, seed=42)
@@ -37,4 +42,10 @@ g = sns.jointplot(
 g.ax_joint.legend_.remove()
 g.set_axis_labels("MinD Mass (AU)", "MinE Mass (AU)")
 plt.savefig("../fig/sim_phase-portrait.svg", transparent=True, bbox_inches="tight")
+plt.show()
+
+# %% plot generational mass distributions
+fig, ax = plt.subplots()
+
+plt.savefig("../fig/sim_mass-by-gen.svg", transparent=True, bbox_inches="tight")
 plt.show()

@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Scripts outputs
+fig/
+sim_data/
+*.svg
+*.png
+*.jpg

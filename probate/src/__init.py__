@@ -1,2 +1,2 @@
-from .vis import plot_mass_distributions, plot_tree
+from .vis import plot_mass_distributions, plot_tree, generate_color_dict
 from .sim import simulate_sampled_lineage

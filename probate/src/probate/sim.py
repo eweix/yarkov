@@ -42,7 +42,7 @@ def simulate_sampled_lineage(
         sample_method: Method for sampling cells: "random" or None.
 
     Returns:
-        DataFrame with columns: id, parent, mass_protein1, mass_protein2, gen, state
+        DataFrame with columns: id, parent, mass_protein, gen, state
 
     Examples:
         >>> df = simulate_sampled_lineage(generations=8, k_syn=40, M_crit=150)
@@ -58,8 +58,7 @@ def simulate_sampled_lineage(
         {
             "id": "0",
             "parent": None,
-            "mass_protein1": M_crit * 0.8,
-            "mass_protein2": M_crit * 0.8,
+            "mass_protein": M_crit * 0.8,
             "gen": 0,
             "state": "Diffuse",
         }
@@ -68,44 +67,35 @@ def simulate_sampled_lineage(
 
     for g in track(range(generations)):
         # Growth phase with random synthesis noise
-        total_masses_protein1 = active_pool["mass_protein1"] + k_syn * (
-            1 + np.random.normal(0, p_noise, len(active_pool))
-        )
-        total_masses_protein2 = active_pool["mass_protein2"] + k_syn * (
+        total_masses_protein = active_pool["mass_protein"] + k_syn * (
             1 + np.random.normal(0, p_noise, len(active_pool))
         )
 
         # Create mask for cells that meet or exceed M_crit
         polarized_mask = (
-            total_masses_protein1 >= M_crit
-        )  # decision logic based on protein 1
+            total_masses_protein >= M_crit
+        )  # decision logic based on protein
 
-        # Initialize shares arrays for protein 1
-        shares_m_protein1 = np.full(len(active_pool), 0.5)  # Default for diffuse
-        shares_d_protein1 = np.full(len(active_pool), 0.5)  # Default for diffuse
+        # Initialize shares arrays for protein
+        shares_m_protein = np.full(len(active_pool), 0.5)  # Default for diffuse
+        shares_d_protein = np.full(len(active_pool), 0.5)  # Default for diffuse
 
         # For polarized cells, set shares to 0.95 and 0.05 for protein 1
-        shares_m_protein1[polarized_mask] = 0.95
-        shares_d_protein1[polarized_mask] = 0.05
+        shares_m_protein[polarized_mask] = 0.95
+        shares_d_protein[polarized_mask] = 0.05
 
         # For diffuse cells, calculate random shares with noise for protein 1
-        noise_protein1 = np.random.normal(0.5, p_noise, len(active_pool))
-        shares_m_protein1[~polarized_mask] = noise_protein1[~polarized_mask]
-        shares_d_protein1[~polarized_mask] = 1 - noise_protein1[~polarized_mask]
+        noise_protein = np.random.normal(0.5, p_noise, len(active_pool))
+        shares_m_protein[~polarized_mask] = noise_protein[~polarized_mask]
+        shares_d_protein[~polarized_mask] = 1 - noise_protein[~polarized_mask]
 
         # Ensure shares are within [0, 1] bounds for protein 1
-        shares_m_protein1 = np.clip(shares_m_protein1, 0, 1)
-        shares_d_protein1 = np.clip(shares_d_protein1, 0, 1)
-
-        # For protein 2, always distribute evenly (50/50 split) regardless of state
-        shares_m_protein2 = np.full(len(active_pool), 0.5)
-        shares_d_protein2 = np.full(len(active_pool), 0.5)
+        shares_m_protein = np.clip(shares_m_protein, 0, 1)
+        shares_d_protein = np.clip(shares_d_protein, 0, 1)
 
         # 3. Create Progeny
-        m_masses_protein1 = total_masses_protein1 * shares_m_protein1
-        d_masses_protein1 = total_masses_protein1 * shares_d_protein1
-        m_masses_protein2 = total_masses_protein2 * shares_m_protein2
-        d_masses_protein2 = total_masses_protein2 * shares_d_protein2
+        m_masses_protein = total_masses_protein * shares_m_protein
+        d_masses_protein = total_masses_protein * shares_d_protein
 
         # Create new cells dataframe
         m_ids = [f"{cell_id}m" for cell_id in active_pool["id"]]
@@ -115,8 +105,7 @@ def simulate_sampled_lineage(
             {
                 "id": m_ids,
                 "parent": active_pool["id"],
-                "mass_protein1": m_masses_protein1,
-                "mass_protein2": m_masses_protein2,
+                "mass_protein": m_masses_protein,
                 "gen": g + 1,
                 "state": np.where(polarized_mask, "Polarized", "Diffuse"),
             }
@@ -126,8 +115,7 @@ def simulate_sampled_lineage(
             {
                 "id": d_ids,
                 "parent": active_pool["id"],
-                "mass_protein1": d_masses_protein1,
-                "mass_protein2": d_masses_protein2,
+                "mass_protein": d_masses_protein,
                 "gen": g + 1,
                 "state": np.where(polarized_mask, "Polarized", "Diffuse"),
             }

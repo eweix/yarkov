@@ -1,7 +1,25 @@
 [project]
-name = "probate"
+name = "asymmetric-inheritance-simulation"
 version = "0.1.0"
-description = "Add your description here"
+description = "Simulate protein inheritance across generations of cells"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "rich>=14.3.3",
+    "seaborn>=0.13.2",
+    "probate"
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
+]
+
+[tool.uv.workspace]
+members = [ "probate" ]
+
+[tool.uv.sources]
+probate = { workspace = true }

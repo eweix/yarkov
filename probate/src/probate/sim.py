@@ -15,7 +15,6 @@ def simulate_sampled_lineage(
     batch_save: bool = True,
     seed: int | None = None,
     sample_method: str = "random",
-    compression: str | None = None,
 ) -> pd.DataFrame:
     """
     Args:
@@ -27,7 +26,6 @@ def simulate_sampled_lineage(
         batch_save: Whether to save each generation to CSV.
         seed: Random seed for reproducibility.
         sample_method: Method for sampling cells: "random", "top_mass", or "above_threshold".
-        compression: Compression for CSV output (e.g., "gzip").
 
     Returns:
         DataFrame with columns: id, parent, mass_protein1, mass_protein2, gen, state
@@ -124,9 +122,7 @@ def simulate_sampled_lineage(
         new_cells = pd.concat([new_cells_m, new_cells_d], ignore_index=True)
 
         if batch_save:
-            new_cells.to_csv(
-                f"{output_dir}/gen_{g:03d}.csv", index=False, compression=compression
-            )
+            new_cells.to_csv(f"{output_dir}/gen_{g:03d}.csv", index=False)
 
         if sample_method == "random":
             n_sample = min(len(new_cells), max_cells)

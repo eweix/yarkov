@@ -25,15 +25,14 @@ class Lineage:
         self.data_directory = data_directory
 
     def _prune(self, generation: int) -> pl.DataFrame:
-        current_generation = self.data[self.data["gen"] == generation]
+        current_generation = self.data.filter(self.data["gen"] == generation)
         gen_size = current_generation.shape[0]
         if self.subsample_method == "random":
             n_sample = min(len(current_generation), self.subsample_size)
             sampled_indices = np.random.choice(gen_size, size=n_sample, replace=False)
+            return current_generation[sampled_indices]
         else:
-            n_sample = min(len(self.data), self.subsample_size)
-            sampled_indices = np.random.choice(gen_size, size=n_sample, replace=False)
-        return current_generation[sampled_indices]
+            return current_generation
 
     def _gen_step(self, input_generation: int):
         active_pool = self._prune(input_generation)
@@ -71,7 +70,7 @@ class Lineage:
         new_cells_m = pl.DataFrame(
             {
                 "id": m_ids,
-                "parent": active_pool["id"],
+                "parent": active_pool["id"].to_list(),
                 "mass_protein": m_masses_protein,
                 "gen": input_generation + 1,
                 "state": np.where(polarized_mask, "Polarized", "Diffuse"),
@@ -81,15 +80,17 @@ class Lineage:
         new_cells_d = pl.DataFrame(
             {
                 "id": d_ids,
-                "parent": active_pool["id"],
+                "parent": active_pool["id"].to_list(),
                 "mass_protein": d_masses_protein,
                 "gen": input_generation + 1,
                 "state": np.where(polarized_mask, "Polarized", "Diffuse"),
             }
         )
 
-        new_cells = pl.concat([new_cells_m, new_cells_d])
-        self.data = pl.concat([self.data, new_cells])
+        self.data = pl.concat(
+            [self.data, new_cells_m, new_cells_d],
+            how="vertical_relaxed",
+        )
 
     def _checkpoint(self, generation: int):
         output_path = f"{self.data_directory}/gen_{generation:03d}.csv"
@@ -107,7 +108,7 @@ class Lineage:
         if initial_conditions is None:
             initial_conditions = [
                 {
-                    "id": 0,
+                    "id": "0",
                     "parent": None,
                     "mass_protein": self.M_crit * 0.8,
                     "gen": 0,
@@ -134,7 +135,7 @@ class Lineage:
                 return g
 
         def build_lineage_trace(from_generation: int | None = None) -> pl.DataFrame:
-            trace = self.data[self.data["gen"] == from_generation][["id", "gen"]]
+            trace = self.data.filter(self.data["gen"] == from_generation)[["id", "gen"]]
             i = 1
             while (
                 trace.height - 1

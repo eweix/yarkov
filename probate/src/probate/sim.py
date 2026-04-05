@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+import polars as pl
 
 
 class Lineage:
@@ -25,7 +25,7 @@ class Lineage:
         self.subsample_size = subsample_size
         self.data_directory = data_directory
 
-    def _prune(self, generation: int) -> pd.DataFrame:
+    def _prune(self, generation: int) -> pl.DataFrame:
         current_generation = self.data[self.data["gen"] == generation]
         gen_size = current_generation.shape[0]
         if self.subsample_method == "random":
@@ -34,7 +34,7 @@ class Lineage:
         else:
             n_sample = min(len(self.data), self.subsample_size)
             sampled_indices = np.random.choice(gen_size, size=n_sample, replace=False)
-        return current_generation.iloc[sampled_indices].reset_index(drop=True)
+        return current_generation[sampled_indices]
 
     def _gen_step(self, input_generation: int):
         active_pool = self._prune(input_generation)
@@ -69,7 +69,7 @@ class Lineage:
         m_ids = [f"{cell_id}m" for cell_id in active_pool["id"]]
         d_ids = [f"{cell_id}d" for cell_id in active_pool["id"]]
 
-        new_cells_m = pd.DataFrame(
+        new_cells_m = pl.DataFrame(
             {
                 "id": m_ids,
                 "parent": active_pool["id"],
@@ -79,7 +79,7 @@ class Lineage:
             }
         )
 
-        new_cells_d = pd.DataFrame(
+        new_cells_d = pl.DataFrame(
             {
                 "id": d_ids,
                 "parent": active_pool["id"],
@@ -89,13 +89,13 @@ class Lineage:
             }
         )
 
-        new_cells = pd.concat([new_cells_m, new_cells_d], ignore_index=True)
-        self.data = pd.concat([self.data, new_cells], ignore_index=True)
+        new_cells = pl.concat([new_cells_m, new_cells_d])
+        self.data = pl.concat([self.data, new_cells])
 
     def _checkpoint(self, generation: int):
         output_path = f"{self.data_directory}/gen_{generation:03d}.csv"
         try:
-            self.data[self.data["gen"] == generation].to_csv(output_path)
+            self.data[self.data["gen"] == generation].write_csv(output_path)
         except TypeError:
             raise TypeError
 
@@ -108,21 +108,23 @@ class Lineage:
         if initial_conditions is None:
             initial_conditions = [
                 {
-                    "id": "0",
+                    "id": 0,
                     "parent": None,
                     "mass_protein": self.M_crit * 0.8,
                     "gen": 0,
                     "state": "Diffuse",
                 }
             ]
-        self.data = pd.DataFrame(initial_conditions)
+        self.data = pl.DataFrame(initial_conditions)
 
         for g in range(num_generations):
             self._gen_step(g)
             if checkpoint:
                 self._checkpoint(g)
 
-    def trace_lineage(self, from_generation: int | None = None) -> pd.DataFrame:
+    def trace_lineage(
+        self, attribute: str, from_generation: int | None = None
+    ) -> pl.DataFrame:
         def check_generation(g: int | None) -> int | None:
             if g is None:
                 return self.data["gen"].max()

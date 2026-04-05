@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import polars as pl
 import seaborn as sns
 from matplotlib.colors import TwoSlopeNorm, to_hex
 
@@ -14,10 +15,10 @@ def generate_color_dict(paths: list[str], cmap="colorblind") -> dict[str, str]:
     return dict(zip(paths, colors))
 
 
-def plot_tree(df: pd.DataFrame, ax, fig, M_crit=150):
+def plot_tree(df: pl.DataFrame, ax, fig, M_crit=150):
     coords = {}
-    df = df.sort_values("gen")
-    parent_state_map = df.set_index("id")["state"].to_dict()
+    df = df.sort(by="gen")
+    parent_state_map = dict(df[["id", "state"]].iter_rows())
 
     def get_x_pos(cell_id):
         if cell_id == "0":
@@ -29,19 +30,19 @@ def plot_tree(df: pd.DataFrame, ax, fig, M_crit=150):
         return pos
 
     # Color normalization based on M_crit as the center
-    vmax = max(M_crit, df["mass_protein1"].max()) * 1.1
+    vmax = max(M_crit, df["mass_protein"].max()) * 1.1
     norm = TwoSlopeNorm(vmin=0, vcenter=M_crit, vmax=vmax)
     cmap = plt.get_cmap("RdYlBu_r")
 
     # Lists to collect coordinates for the final scatter plot
     x_vals, y_vals, masses = [], [], []
 
-    for _, row in df.iterrows():
+    for row in df.iter_rows(named=True):
         x, y = get_x_pos(row["id"]), row["gen"]
         coords[row["id"]] = (x, y)
         x_vals.append(x)
         y_vals.append(y)
-        masses.append(row["mass_protein1"])
+        masses.append(row["mass_protein"])
 
         # Plot edges
         if (row["parent"] is not None) and (row["parent"] is not np.nan):
@@ -50,7 +51,7 @@ def plot_tree(df: pd.DataFrame, ax, fig, M_crit=150):
 
             if p_state == "Polarized":
                 edge_col, alpha = (
-                    ("red", 0.9) if row["mass_protein1"] >= M_crit else ("#DDA0DD", 0.6)
+                    ("red", 0.9) if row["mass_protein"] >= M_crit else ("#DDA0DD", 0.6)
                 )
             else:
                 edge_col, alpha = ("gray", 0.3)
@@ -90,15 +91,18 @@ def plot_tree(df: pd.DataFrame, ax, fig, M_crit=150):
     plt.tight_layout()
 
 
-def plot_mass_distributions(df: pd.DataFrame, ax, M_crit=150):
-
+def plot_mass_distributions(df: pd.DataFrame | pl.DataFrame, ax, M_crit=150):
+    if isinstance(df, pl.DataFrame):
+        data = df.to_pandas()
+    else:
+        data = df
     sns.boxplot(
-        data=df, x="gen", y="mass_protein1", whis=np.inf, color="lightgray", ax=ax
+        data=data, x="gen", y="mass_protein", whis=np.inf, color="lightgray", ax=ax
     )
     sns.stripplot(
         data=df,
         x="gen",
-        y="mass_protein1",
+        y="mass_protein",
         hue="state",
         palette={"Diffuse": "blue", "Polarized": "red"},
         alpha=0.5,

@@ -3,7 +3,6 @@ import polars as pl
 
 
 class Lineage:
-
     def __init__(
         self,
         k_syn: float,
@@ -134,22 +133,29 @@ class Lineage:
             else:
                 return g
 
-        def build_lineage_trace(from_generation: int | None = None):
+        def build_lineage_trace(from_generation: int | None = None) -> pl.DataFrame:
+            trace = self.data[self.data["gen"] == from_generation][["id", "gen"]]
+            i = 1
+            while (
+                trace.height - 1
+                > trace.select(pl.col(f"gen_{i}_id").null_count()).item()
+            ):
+                trace = trace.join(
+                    self.data.rename({"parent": f"gen_{i + 1}"}),
+                    left_on=f"gen_{i}",
+                    right_on="id",
+                    how="left",
+                )
+                i += 1
+            return trace
 
-            def build_one_lineage_trace(
-                cell: pd.Series, attribute: str, lineage: np.ndarray | None
-            ) -> dict[int, list]:
-                if lineage is None:
-                    lineage = dict(cell["id"]=np.ndarray(cell["gen"]))
-                lineage[cell["gen"]] = cell[attribute]
-                if cell["gen"] == 0:
-                    return lineage
-                else:
-                    parent_cell = self.data[self.data["id"] == cell["parent"]]
-                    build_one_lineage_trace(parent_cell, attribute, lineage)
-
-            incident_cells = self.data[self.data["gen"] == from_generation]
+        def collect_lineage_stats(trace: pl.DataFrame, attribute: str) -> pl.DataFrame:
+            lookup = dict(self.data[["id", attribute]].iter_rows())
+            lineage_stats = trace
+            lineage_stats.with_columns(pl.all().replace(lookup, default=None))
+            return lineage_stats
 
         g = check_generation(from_generation)
         trace = build_lineage_trace(g)
-        return pd.DataFrame(trace)
+        stats = collect_lineage_stats(trace, attribute)
+        return stats

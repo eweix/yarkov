@@ -1,51 +1,34 @@
 # %% import libraries
 import matplotlib.pyplot as plt
+import polars as pl
 import seaborn as sns
 
-from probate import (
-    generate_color_dict,
-    plot_mass_distributions,
-    plot_tree,
-    simulate_sampled_lineage,
-)
+from probate import Lineage, plot_mass_distributions, plot_tree
 
 # %% this scenario will produce a long-tailed distribution of protein-rich cells
-df = simulate_sampled_lineage(generations=20, k_syn=100, M_crit=150, seed=42)
+TailedSim = Lineage(
+    k_syn=100,
+    M_crit=150,
+    random_seed=42,
+    data_directory="./qb_sim",
+    subsample_method=None,
+)
+TailedSim.simulate_lineage(20)
+df = TailedSim.data
 
-
-# %% plot out lineage tree
+# # %% plot out lineage tree
+cells = df.filter(pl.col("gen") < 10)
 fig1, ax1 = plt.subplots(figsize=(14, 10))
-plot_tree(df[df.gen < 10], ax1, fig1, 150)
-plt.savefig("../fig/sim_tailed-lineage-tree.svg", transparent=True, bbox_inches="tight")
+plot_tree(cells, ax1, fig1, 150)
+# plt.savefig("../fig/sim_tailed-lineage-tree.svg", transparent=True, bbox_inches="tight")
 plt.show()
 
-# %% plot
+# # %% plot
 fig2, ax2 = plt.subplots(figsize=(7, 3))
-plot_mass_distributions(df[df.gen < 10], ax2, 150)
+plot_mass_distributions(cells, ax2, 150)
 sns.set_style("ticks")
 sns.despine()
 ax2.set_xlabel("Simulation Generation", size=12)
 ax2.set_ylabel("Protein Mass", size=12)
-plt.savefig("../fig/sim_tailed-mass-dist.svg", transparent=True, bbox_inches="tight")
-plt.show()
-
-# %%
-cdict = generate_color_dict(list(df["gen"].unique()), cmap="magma")
-g = sns.jointplot(
-    data=df,
-    x="mass_protein1",
-    y="mass_protein2",
-    hue="gen",
-    palette=cdict,
-    alpha=0.3,
-)
-g.ax_joint.legend_.remove()
-g.set_axis_labels("MinD Mass (AU)", "MinE Mass (AU)")
-plt.savefig("../fig/sim_phase-portrait.svg", transparent=True, bbox_inches="tight")
-plt.show()
-
-# %% plot generational mass distributions
-fig, ax = plt.subplots()
-
-plt.savefig("../fig/sim_mass-by-gen.svg", transparent=True, bbox_inches="tight")
+# plt.savefig("../fig/sim_tailed-mass-dist.svg", transparent=True, bbox_inches="tight")
 plt.show()

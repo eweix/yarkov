@@ -77,9 +77,9 @@ def plot_tree(df: pl.DataFrame, ax, fig, M_crit=150):
     cbar.ax.axhline(M_crit, color="black", linestyle="--", linewidth=1)
 
     # label axes
-    ax.set_title(f"Lineage Trace (M_crit = {M_crit})", fontsize=18)
+    ax.set_title(f"Lineage Trace (M_crit = {M_crit})", fontsize=24)
     # ax.set_xlabel("Relative Lineage Position", fontsize=12)
-    ax.set_ylabel("Generation", fontsize=12)
+    ax.set_ylabel("Generation", fontsize=18)
 
     # style axes
     ax.spines["top"].set_visible(False)

@@ -7,6 +7,7 @@ class Lineage:
         self,
         k_syn: float,
         M_crit: int | float = 150,
+        a: float = 0.50,
         syn_noise: float = 0.05,
         div_noise: float = 0.05,
         subsample_method: str | None = "random",
@@ -17,6 +18,7 @@ class Lineage:
         # set parameters
         self.k_syn = k_syn
         self.M_crit = M_crit
+        self.a = a
         self.syn_noise = syn_noise
         self.div_noise = div_noise
         self.subsample_method = subsample_method
@@ -47,8 +49,8 @@ class Lineage:
         polarized_mask = total_masses_protein >= self.M_crit
         shares_m_protein = np.full(active_size, 0.5)
         shares_d_protein = np.full(active_size, 0.5)
-        shares_m_protein[polarized_mask] = 0.95
-        shares_d_protein[polarized_mask] = 0.05
+        shares_m_protein[polarized_mask] = (1 + self.a) / 2
+        shares_d_protein[polarized_mask] = (1 - self.a) / 2
 
         # For diffuse cells, calculate random shares with noise for protein 1
         noise_protein = np.random.normal(0.5, self.syn_noise, active_size)

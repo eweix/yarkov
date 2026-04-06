@@ -9,6 +9,7 @@ from probate import Lineage, plot_mass_distributions, plot_tree
 TailedSim = Lineage(
     k_syn=100,
     M_crit=150,
+    a=0.95,
     random_seed=42,
     data_directory="./qb_sim",
     subsample_method=None,

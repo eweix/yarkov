@@ -137,26 +137,28 @@ class Lineage:
                 return g
 
         def build_lineage_trace(from_generation: int | None = None) -> pl.DataFrame:
-            trace = self.data.filter(self.data["gen"] == from_generation)[["id", "gen"]]
-            i = 1
+            i = from_generation
+            start = f"gen_{i}"
+            trace = self.data.filter(self.data["gen"] == from_generation)
+            trace = trace[["id", "parent"]].rename({"parent": start})
+            df = self.data[["id", "parent"]].rename({"parent": start})
             while (
-                trace.height - 1
-                > trace.select(pl.col(f"gen_{i}_id").null_count()).item()
+                trace.height - 1 > trace.select(pl.col(f"gen_{i}").null_count()).item()
             ):
                 trace = trace.join(
-                    self.data.rename({"parent": f"gen_{i + 1}"}),
+                    df.rename({start: f"gen_{i - 1}"}),
                     left_on=f"gen_{i}",
                     right_on="id",
                     how="left",
                 )
-                i += 1
+                i -= 1
             return trace
 
         def collect_lineage_stats(trace: pl.DataFrame, attribute: str) -> pl.DataFrame:
             lookup = dict(self.data[["id", attribute]].iter_rows())
-            lineage_stats = trace
-            lineage_stats.with_columns(pl.all().replace(lookup, default=None))
-            return lineage_stats
+            stats = trace
+            stats = stats.with_columns(pl.all().replace(lookup, default=None))
+            return stats
 
         g = check_generation(from_generation)
         trace = build_lineage_trace(g)

@@ -9,7 +9,6 @@ dependencies = [
     "numpy>=2.4.4",
     "rich>=14.3.3",
     "seaborn>=0.13.2",
-    "probate",
     "polars>=1.39.3",
     "pyarrow>=23.0.1",
 ]
@@ -18,9 +17,3 @@ dependencies = [
 dev = [
     "ipykernel>=7.2.0",
 ]
-
-[tool.uv.workspace]
-members = [ "probate" ]
-
-[tool.uv.sources]
-probate = { workspace = true }

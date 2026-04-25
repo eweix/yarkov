@@ -129,7 +129,7 @@ class Lineage:
     ) -> pl.DataFrame:
         def check_generation(g: int | None) -> int | None:
             if g is None:
-                return self.data["gen"].max()
+                return int(self.data["gen"].max())  # noqa
             elif g <= 0:
                 e = f"Expected a positive integer for generation, not {g}"
                 raise Exception(e)
@@ -137,7 +137,11 @@ class Lineage:
                 return g
 
         def build_lineage_trace(from_generation: int | None = None) -> pl.DataFrame:
-            i = from_generation
+
+            if from_generation is None:
+                i = int(self.data["gen"].max())  # noqa
+            else:
+                i = from_generation
             start = f"gen_{i}"
             trace = self.data.filter(self.data["gen"] == from_generation)
             trace = trace[["id", "parent"]].rename({"parent": start})
@@ -164,3 +168,120 @@ class Lineage:
         trace = build_lineage_trace(g)
         stats = collect_lineage_stats(trace, attribute)
         return stats
+
+
+class Ensemble:
+    def __init__(
+        self,
+        k_syn: float,
+        M_crit: int | float = 150,
+        a: float = 0.50,
+        syn_noise: float = 0.05,
+        div_noise: float = 0.05,
+        n_cells: int = 100,
+        n_gen: int = 10,
+        random_seed: int | None = None,
+        initial_mass: float | None = None,
+    ):
+        # Store all parameters as instance variables
+        self.k_syn = k_syn
+        self.M_crit = M_crit
+        self.a = a
+        self.syn_noise = syn_noise
+        self.div_noise = div_noise
+        self.n_cells = n_cells
+        self.n_gen = n_gen
+        self.random_seed = random_seed
+
+        # Set random seed if provided
+        if random_seed is not None:
+            np.random.seed(random_seed)
+
+        # Set initial mass (default to 80% of M_crit if not provided)
+        if initial_mass is None:
+            initial_mass = M_crit * 0.8
+
+        self.initial_mass = initial_mass
+        self.data: pl.DataFrame | None = None
+
+    def simulate(self):
+        # Initialize n_cells with IDs and initial masses
+        cell_ids = [str(i) for i in range(self.n_cells)]
+        initial_data = pl.DataFrame(
+            {
+                "id": cell_ids,
+                "mass_protein": [self.initial_mass] * self.n_cells,
+                "gen": [0] * self.n_cells,
+                "state": ["Diffuse"] * self.n_cells,
+            }
+        )
+
+        # Store results
+        all_generations = [initial_data]
+
+        # Loop through n_gen generations
+        for gen in range(1, self.n_gen + 1):
+            prev_data = all_generations[gen - 1]
+
+            # Growth phase with random synthesis noise
+            pre_division_mass = prev_data["mass_protein"] + self.k_syn * (
+                1 + np.random.normal(0, self.syn_noise, self.n_cells)
+            )
+
+            # Determine polarization state
+            polarized_mask = pre_division_mass >= self.M_crit
+
+            # Division phase
+            post_division_mass = np.zeros(self.n_cells)
+            states = []
+
+            for i in range(self.n_cells):
+                if polarized_mask[i]:  # Polarized
+                    # Randomly assign (1+a)/2 or (1-a)/2 share
+                    if np.random.random() < 0.5:
+                        post_division_mass[i] = pre_division_mass[i] * (1 + self.a) / 2
+                    else:
+                        post_division_mass[i] = pre_division_mass[i] * (1 - self.a) / 2
+                    states.append("Polarized")
+                else:  # Diffuse
+                    # Random split with noise
+                    share = np.clip(np.random.normal(0.5, self.syn_noise), 0, 1)
+                    post_division_mass[i] = pre_division_mass[i] * share
+                    states.append("Diffuse")
+
+            # Create new generation data
+            new_data = pl.DataFrame(
+                {
+                    "id": cell_ids,
+                    "mass_protein": post_division_mass,
+                    "gen": [gen] * self.n_cells,
+                    "state": states,
+                }
+            )
+
+            all_generations.append(new_data)
+
+        # Combine all generations into a single DataFrame
+        self.data = pl.concat(all_generations, how="vertical_relaxed")
+
+    def get_trajectory(self, cell_id: str) -> pl.DataFrame:
+        if self.data is None:
+            raise ValueError("No data available. Run simulate() first.")
+        return self.data.filter(pl.col("id") == cell_id).sort("gen")
+
+    def get_final_state(self) -> pl.DataFrame:
+        if self.data is None:
+            raise ValueError("No data available. Run simulate() first.")
+        return self.data.filter(pl.col("gen") == self.n_gen)
+
+    def get_statistics(self) -> pl.DataFrame:
+        if self.data is None:
+            raise ValueError("No data available. Run simulate() first.")
+
+        stats = self.data.group_by("gen").agg(
+            pl.col("mass_protein").mean().alias("mean_mass_protein"),
+            pl.col("mass_protein").std().alias("std_mass_protein"),
+            (pl.col("state") == "Polarized").mean().alias("fraction_polarized"),
+        )
+
+        return stats.sort("gen")

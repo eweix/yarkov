@@ -114,6 +114,7 @@ def run_simulation(
     n_cells: int = 100,
     n_gen: int = 10,
     seed: int | None = None,
+    sample_id: int | None = None,
 ) -> list[dict]:
     """
     Run a single ensemble simulation with given parameters.
@@ -128,6 +129,8 @@ def run_simulation(
         Number of generations to simulate.
     seed : int | None
         Random seed for reproducibility.
+    sample_id : int | None
+        Unique sample identifier.
 
     Returns
     -------
@@ -149,6 +152,7 @@ def run_simulation(
     trajectory = compute_trajectory_moments(ensemble)
     return [
         {
+            "sample_id": sample_id,
             "k_syn": params["k_syn"],
             "M_crit": params["M_crit"],
             "a": params["a"],
@@ -217,11 +221,17 @@ def run_parameter_search(
 
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
         future_to_params = {}
+        sample_id = 1
         for param_idx, params in enumerate(param_list):
             for s in range(n_seeds):
-                sim_seed = (seed + param_idx * n_seeds + s + 1) if seed is not None else None
-                fut = executor.submit(run_simulation, params, n_cells, n_gen, sim_seed)
+                sim_seed = (
+                    (seed + param_idx * n_seeds + s + 1) if seed is not None else None
+                )
+                fut = executor.submit(
+                    run_simulation, params, n_cells, n_gen, sim_seed, sample_id
+                )
                 future_to_params[fut] = params
+                sample_id += 1
 
         for future in as_completed(future_to_params):
             params = future_to_params[future]

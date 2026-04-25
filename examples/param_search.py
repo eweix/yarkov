@@ -248,7 +248,9 @@ def run_parameter_search(
                 failed_count += 1
 
     if failed_count:
-        warnings.warn(f"Parameter search completed with {failed_count} failed simulation(s).")
+        warnings.warn(
+            f"Parameter search completed with {failed_count} failed simulation(s)."
+        )
 
     return pl.DataFrame(results)
 

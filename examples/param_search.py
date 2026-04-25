@@ -20,6 +20,7 @@ def latin_hypercube_samples(
     n_samples: int,
     k_syn_bounds: tuple[float, float] = (0.5, 5.0),
     M_crit_bounds: tuple[float, float] = (100, 200),
+    a_bounds: tuple[float, float] = (0, 1),
     initial_mass_bounds: tuple[float, float] = (50, 250),
     seed: int | None = None,
 ) -> list[dict]:
@@ -34,6 +35,8 @@ def latin_hypercube_samples(
         (min, max) bounds for k_syn parameter.
     M_crit_bounds : tuple[float, float]
         (min, max) bounds for M_crit parameter.
+    a_bounds : tuple[float, float]
+        (min, max) bounds for a parameter.
     initial_mass_bounds : tuple[float, float]
         (min, max) bounds for initial_mass.
     seed : int | None
@@ -44,18 +47,19 @@ def latin_hypercube_samples(
     list[dict]
         Parameter dictionaries with keys: k_syn, M_crit, initial_mass.
     """
-    sampler = stats.qmc.LatinHypercube(d=3, seed=seed)
+    sampler = stats.qmc.LatinHypercube(d=4, seed=seed)
     unit_samples = sampler.random(n=n_samples)
-    bounds = np.array([k_syn_bounds, M_crit_bounds, initial_mass_bounds])
+    bounds = np.array([k_syn_bounds, M_crit_bounds, a_bounds, initial_mass_bounds])
     scaled = stats.qmc.scale(unit_samples, bounds[:, 0], bounds[:, 1])
 
     return [
         {
             "k_syn": float(k_syn),
             "M_crit": float(M_crit),
+            "a": float(a),
             "initial_mass": float(init_mass),
         }
-        for k_syn, M_crit, init_mass in scaled
+        for k_syn, M_crit, a, init_mass in scaled
     ]
 
 
@@ -133,6 +137,7 @@ def run_simulation(
     ensemble = Ensemble(
         k_syn=params["k_syn"],
         M_crit=params["M_crit"],
+        a=params["a"],
         n_cells=n_cells,
         n_gen=n_gen,
         random_seed=seed,
@@ -146,6 +151,7 @@ def run_simulation(
         {
             "k_syn": params["k_syn"],
             "M_crit": params["M_crit"],
+            "a": params["a"],
             "initial_mass": params["initial_mass"],
             "seed": seed,
             **moment,
@@ -161,6 +167,7 @@ def run_parameter_search(
     n_seeds: int = 1,
     k_syn_bounds: tuple[float, float] = (0.5, 5.0),
     M_crit_bounds: tuple[float, float] = (100, 200),
+    a_bounds: tuple[float, float] = (0, 1),
     initial_mass_bounds: tuple[float, float] = (50, 250),
     max_workers: int = 4,
     seed: int | None = None,
@@ -182,6 +189,8 @@ def run_parameter_search(
         (min, max) bounds for k_syn.
     M_crit_bounds : tuple[float, float]
         (min, max) bounds for M_crit.
+    a_bounds : tuple[float, float]
+        (min, amx) bounds for asymmetry parameter a.
     initial_mass_bounds : tuple[float, float]
         (min, max) bounds for initial_mass.
     max_workers : int
@@ -192,7 +201,7 @@ def run_parameter_search(
     Returns
     -------
     pl.DataFrame
-        Results with columns: k_syn, M_crit, initial_mass, seed, gen, mean, variance, skew, kurtosis.
+        Results with columns: sample_id, k_syn, M_crit, initial_mass, seed, gen, mean, variance, skew, kurtosis.
     """
     # Generate LHS samples
     param_list = latin_hypercube_samples(
@@ -222,8 +231,10 @@ def run_parameter_search(
                 cause = e
                 while hasattr(cause, "__cause__") and cause.__cause__ is not None:
                     cause = cause.__cause__
-                param_str = f"k_syn={params['k_syn']:.3f}, M_crit={params['M_crit']:.1f}, initial_mass={params['initial_mass']:.1f}"
-                warnings.warn(f"Simulation failed ({param_str}): {type(cause).__name__}: {cause}")
+                param_str = f"k_syn={params['k_syn']:.3f}, M_crit={params['M_crit']:.1f}, initial_mass={params['initial_mass']:.1f}, a={params['a']:.3f}"
+                warnings.warn(
+                    f"Simulation failed ({param_str}): {type(cause).__name__}: {cause}"
+                )
                 failed_count += 1
 
     if failed_count:
@@ -288,7 +299,9 @@ def visualize_contour_slices(
             results = results.filter(pl.col("gen") == results["gen"].max())
 
         moments = ["mean", "variance", "skew", "kurtosis"]
-        other_params = [p for p in ["k_syn", "M_crit", "initial_mass"] if p != x_param]
+        other_params = [
+            p for p in ["k_syn", "M_crit", "initial_mass", "a"] if p != x_param
+        ]
 
         fig, axes = plt.subplots(2, 2, figsize=(12, 10))
         axes = axes.flatten()
@@ -404,6 +417,7 @@ if __name__ == "__main__":
         n_seeds=1,
         k_syn_bounds=(0.5, 5.0),
         M_crit_bounds=(100, 200),
+        a_bounds=(0, 1),
         initial_mass_bounds=(50, 250),
         max_workers=4,
         seed=42,

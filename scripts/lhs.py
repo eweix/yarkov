@@ -18,7 +18,7 @@ from yarkov.sim import Ensemble
 
 def latin_hypercube_samples(
     n_samples: int,
-    k_syn_bounds: tuple[float, float] = (0.5, 5.0),
+    k_syn_bounds: tuple[float, float] = (0, 200),
     M_crit_bounds: tuple[float, float] = (100, 200),
     a_bounds: tuple[float, float] = (0, 1),
     initial_mass_bounds: tuple[float, float] = (50, 250),
@@ -427,7 +427,7 @@ if __name__ == "__main__":
         n_cells=100,
         n_gen=10,
         n_seeds=1,
-        k_syn_bounds=(0.5, 5.0),
+        k_syn_bounds=(0, 200),
         M_crit_bounds=(100, 200),
         a_bounds=(0, 1),
         initial_mass_bounds=(50, 250),

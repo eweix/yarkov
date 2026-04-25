@@ -15,5 +15,7 @@ sim_data/
 *.svg
 *.png
 *.jpg
+*.csv
+*.html
 
 .DS_Store

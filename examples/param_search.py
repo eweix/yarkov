@@ -7,8 +7,7 @@ resulting mass_protein distribution.
 """
 
 import warnings
-from concurrent.futures import ProcessPoolExecutor
-from typing import Generator
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import numpy as np
 import polars as pl
@@ -23,7 +22,7 @@ def latin_hypercube_samples(
     M_crit_bounds: tuple[float, float] = (100, 200),
     initial_mass_bounds: tuple[float, float] = (50, 250),
     seed: int | None = None,
-) -> Generator[dict, None, None]:
+) -> list[dict]:
     """
     Generate parameter combinations using Latin Hypercube Sampling.
 
@@ -40,24 +39,24 @@ def latin_hypercube_samples(
     seed : int | None
         Random seed for reproducibility.
 
-    Yields
-    ------
-    dict
+    Returns
+    -------
+    list[dict]
         Parameter dictionaries with keys: k_syn, M_crit, initial_mass.
     """
     sampler = stats.qmc.LatinHypercube(d=3, seed=seed)
     unit_samples = sampler.random(n=n_samples)
-
-    # Scale to bounds
     bounds = np.array([k_syn_bounds, M_crit_bounds, initial_mass_bounds])
     scaled = stats.qmc.scale(unit_samples, bounds[:, 0], bounds[:, 1])
 
-    for k_syn, M_crit, init_mass in scaled:
-        yield {
+    return [
+        {
             "k_syn": float(k_syn),
             "M_crit": float(M_crit),
             "initial_mass": float(init_mass),
         }
+        for k_syn, M_crit, init_mass in scaled
+    ]
 
 
 def compute_moments(masses: np.ndarray) -> dict:
@@ -196,7 +195,7 @@ def run_parameter_search(
         Results with columns: k_syn, M_crit, initial_mass, seed, gen, mean, variance, skew, kurtosis.
     """
     # Generate LHS samples
-    param_generator = latin_hypercube_samples(
+    param_list = latin_hypercube_samples(
         n_samples=n_samples,
         k_syn_bounds=k_syn_bounds,
         M_crit_bounds=M_crit_bounds,
@@ -205,24 +204,30 @@ def run_parameter_search(
     )
 
     results = []
+    failed_count = 0
 
-    # Run simulations in parallel
     with ProcessPoolExecutor(max_workers=max_workers) as executor:
-        futures = []
-        for params in param_generator:
+        future_to_params = {}
+        for param_idx, params in enumerate(param_list):
             for s in range(n_seeds):
-                # Use different seed for each replicate
-                sim_seed = (seed + s + 1) if seed is not None else None
-                futures.append(
-                    executor.submit(run_simulation, params, n_cells, n_gen, sim_seed)
-                )
+                sim_seed = (seed + param_idx * n_seeds + s + 1) if seed is not None else None
+                fut = executor.submit(run_simulation, params, n_cells, n_gen, sim_seed)
+                future_to_params[fut] = params
 
-        for future in futures:
+        for future in as_completed(future_to_params):
+            params = future_to_params[future]
             try:
-                trajectory = future.result()
-                results.extend(trajectory)
+                results.extend(future.result())
             except Exception as e:
-                warnings.warn(f"Simulation failed: {e}")
+                cause = e
+                while hasattr(cause, "__cause__") and cause.__cause__ is not None:
+                    cause = cause.__cause__
+                param_str = f"k_syn={params['k_syn']:.3f}, M_crit={params['M_crit']:.1f}, initial_mass={params['initial_mass']:.1f}"
+                warnings.warn(f"Simulation failed ({param_str}): {type(cause).__name__}: {cause}")
+                failed_count += 1
+
+    if failed_count:
+        warnings.warn(f"Parameter search completed with {failed_count} failed simulation(s).")
 
     return pl.DataFrame(results)
 
@@ -245,13 +250,13 @@ def aggregate_results(results: pl.DataFrame) -> pl.DataFrame:
         results.group_by(["k_syn", "M_crit", "initial_mass", "gen"])
         .agg(
             pl.col("mean").mean().alias("mean_mean"),
-            pl.col("mean").std().alias("std_mean"),
+            pl.col("mean").std(ddof=0).fill_nan(0.0).alias("std_mean"),
             pl.col("variance").mean().alias("mean_variance"),
-            pl.col("variance").std().alias("std_variance"),
+            pl.col("variance").std(ddof=0).fill_nan(0.0).alias("std_variance"),
             pl.col("skew").mean().alias("mean_skew"),
-            pl.col("skew").std().alias("std_skew"),
+            pl.col("skew").std(ddof=0).fill_nan(0.0).alias("std_skew"),
             pl.col("kurtosis").mean().alias("mean_kurtosis"),
-            pl.col("kurtosis").std().alias("std_kurtosis"),
+            pl.col("kurtosis").std(ddof=0).fill_nan(0.0).alias("std_kurtosis"),
         )
         .sort(["k_syn", "M_crit", "initial_mass", "gen"])
     )

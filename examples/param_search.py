@@ -421,7 +421,7 @@ if __name__ == "__main__":
 
     # Run search with reasonable defaults
     results = run_parameter_search(
-        n_samples=30,
+        n_samples=300,
         n_cells=100,
         n_gen=10,
         n_seeds=1,

@@ -3,10 +3,10 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-df = pd.read_csv("param_search_results.csv")
+df = pd.read_csv("sims.csv")
 
 
-def create_dashboard(df, output_file="exploration_dashboard.html"):
+def create_dashboard(df, output_file="lineage_sims.html"):
     moments = ["mean", "variance", "skew", "kurtosis"]
     colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
     colorscales = ["RdBu_r", "RdBu_r", "RdBu_r", "RdBu_r"]

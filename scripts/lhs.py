@@ -287,121 +287,8 @@ def aggregate_results(results: pl.DataFrame) -> pl.DataFrame:
     return aggregated
 
 
-def visualize_contour_slices(
-    results: pl.DataFrame, x_param: str = "k_syn", gen: int | None = None
-) -> None:
-    """
-    Create contour plots for each moment as slices through parameter space.
-
-    Parameters
-    ----------
-    results : pl.DataFrame
-        Results from run_parameter_search (raw or aggregated).
-    x_param : str
-        Parameter to use as x-axis (default: "k_syn").
-    gen : int | None
-        If provided, filter to specific generation. Otherwise uses last generation.
-    """
-    try:
-        import matplotlib.pyplot as plt
-
-        if gen is not None:
-            results = results.filter(pl.col("gen") == gen)
-        elif "gen" in results.columns:
-            results = results.filter(pl.col("gen") == results["gen"].max())
-
-        moments = ["mean", "variance", "skew", "kurtosis"]
-        other_params = [
-            p for p in ["k_syn", "M_crit", "initial_mass", "a"] if p != x_param
-        ]
-
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-        axes = axes.flatten()
-
-        for ax, moment in zip(axes, moments):
-            pivot_data = results.select([x_param, other_params[0], moment])
-            pivot = pivot_data.pivot(
-                index=other_params[0], columns=x_param, values=moment
-            )
-
-            X = np.array(pivot.columns)
-            Y = np.array(pivot.rows)
-            Z = pivot.to_numpy()
-
-            im = ax.contourf(X, Y, Z, levels=15, cmap="viridis")
-            ax.set_xlabel(x_param)
-            ax.set_ylabel(other_params[0])
-            ax.set_title(f"{moment}")
-            plt.colorbar(im, ax=ax)
-
-        plt.suptitle(f"Moment distributions across {x_param} and {other_params[0]}")
-        plt.tight_layout()
-        plt.show()
-    except ImportError:
-        print("matplotlib not installed. Install with: pip install matplotlib")
-
-
-def visualize_trajectories(
-    results: pl.DataFrame,
-    k_syn: float | None = None,
-    M_crit: float | None = None,
-    initial_mass: float | None = None,
-) -> None:
-    """
-    Create line plots showing how moments evolve over generations.
-
-    Parameters
-    ----------
-    results : pl.DataFrame
-        Aggregated results from aggregate_results.
-    k_syn : float | None
-        If provided, filter to specific k_syn value.
-    M_crit : float | None
-        If provided, filter to specific M_crit value.
-    initial_mass : float | None
-        If provided, filter to specific initial_mass value.
-    """
-    try:
-        import matplotlib.pyplot as plt
-
-        filtered = results.clone()
-        if k_syn is not None:
-            filtered = filtered.filter(pl.col("k_syn") == k_syn)
-        if M_crit is not None:
-            filtered = filtered.filter(pl.col("M_crit") == M_crit)
-        if initial_mass is not None:
-            filtered = filtered.filter(pl.col("initial_mass") == initial_mass)
-
-        moments = ["mean", "variance", "skew", "kurtosis"]
-
-        fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-        axes = axes.flatten()
-
-        for ax, moment in zip(axes, moments):
-            ax.plot(filtered["gen"], filtered[f"mean_{moment}"], "o-", label="mean")
-            if "std_mean" in filtered.columns:
-                ax.fill_between(
-                    filtered["gen"],
-                    filtered[f"mean_{moment}"] - filtered[f"std_{moment}"],
-                    filtered[f"mean_{moment}"] + filtered[f"std_{moment}"],
-                    alpha=0.3,
-                    label="±1 std",
-                )
-            ax.set_xlabel("Generation")
-            ax.set_ylabel(moment)
-            ax.set_title(f"{moment} over time")
-            ax.legend()
-            ax.grid(True, alpha=0.3)
-
-        plt.suptitle("Moment trajectories over generations")
-        plt.tight_layout()
-        plt.show()
-    except ImportError:
-        print("matplotlib not installed. Install with: pip install matplotlib")
-
-
 def save_results(
-    results: pl.DataFrame, filepath: str = "param_search_results.csv"
+    results: pl.DataFrame, filepath: str = "sims.csv"
 ) -> None:
     """
     Save results to CSV file.
@@ -439,14 +326,4 @@ if __name__ == "__main__":
     print(results.head())
 
     # Save results
-    save_results(results, "param_search_results.csv")
-
-    # Aggregate across seeds
-    aggregated = aggregate_results(results)
-    print("\nAggregated results (first 5 rows):")
-    print(aggregated.head())
-
-    # Visualize (requires matplotlib)
-    print("\nGenerating visualizations...")
-    visualize_contour_slices(results, x_param="k_syn", gen=10)
-    visualize_trajectories(aggregated)
+    save_results(results, "sims.csv")

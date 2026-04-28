@@ -114,7 +114,7 @@ def create_dashboard(df, output_file="lineage_sims.html"):
                     marker=dict(
                         color=gen_df[moment].values,
                         colorscale=colorscales[mi],
-                        opacity=0.6,
+                        opacity=0.8,
                         colorbar=dict(
                             title=moment,
                             x=colorbar_x,
@@ -154,7 +154,7 @@ def create_dashboard(df, output_file="lineage_sims.html"):
                     marker=dict(
                         color=gen_df[moment].values,
                         colorscale=colorscales[mi],
-                        opacity=0.6,
+                        opacity=0.8,
                     ),
                     customdata=np.column_stack(
                         [
@@ -188,7 +188,7 @@ def create_dashboard(df, output_file="lineage_sims.html"):
                     marker=dict(
                         color=gen_df[moment].values,
                         colorscale=colorscales[mi],
-                        opacity=0.6,
+                        opacity=0.8,
                     ),
                     customdata=np.column_stack(
                         [

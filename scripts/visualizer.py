@@ -98,7 +98,7 @@ def create_dashboard(df, output_file="lineage_sims.html"):
             )
 
     # Colorbar positions for 3 param spaces per row
-    colorbar_x = [1.02, 1.06, 1.10]
+    colorbar_x = 1.02
     colorbar_len = 0.18
 
     for g in range(n_gens):
@@ -117,7 +117,7 @@ def create_dashboard(df, output_file="lineage_sims.html"):
                         opacity=0.6,
                         colorbar=dict(
                             title=moment,
-                            x=colorbar_x[0],
+                            x=colorbar_x,
                             len=colorbar_len,
                             y=0.9 - mi * 0.22,
                         ),
@@ -155,12 +155,6 @@ def create_dashboard(df, output_file="lineage_sims.html"):
                         color=gen_df[moment].values,
                         colorscale=colorscales[mi],
                         opacity=0.6,
-                        colorbar=dict(
-                            title=moment,
-                            x=colorbar_x[1],
-                            len=colorbar_len,
-                            y=0.9 - mi * 0.22,
-                        ),
                     ),
                     customdata=np.column_stack(
                         [
@@ -195,12 +189,6 @@ def create_dashboard(df, output_file="lineage_sims.html"):
                         color=gen_df[moment].values,
                         colorscale=colorscales[mi],
                         opacity=0.6,
-                        colorbar=dict(
-                            title=moment,
-                            x=colorbar_x[2],
-                            len=colorbar_len,
-                            y=0.9 - mi * 0.22,
-                        ),
                     ),
                     customdata=np.column_stack(
                         [

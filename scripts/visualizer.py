@@ -5,12 +5,97 @@ from plotly.subplots import make_subplots
 
 df = pd.read_csv("sims.csv")
 
+moments = ["mean", "variance", "skew", "kurtosis"]
+colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
+colorscales = ["RdBu_r", "RdBu_r", "RdBu_r", "RdBu_r"]
 
-def create_dashboard(df, output_file="lineage_sims.html"):
-    moments = ["mean", "variance", "skew", "kurtosis"]
-    colors = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728"]
-    colorscales = ["RdBu_r", "RdBu_r", "RdBu_r", "RdBu_r"]
+unique_samples = df.groupby("sample_id").first().reset_index()
+k_syn_vals = unique_samples["k_syn"].values
+M_crit_vals = unique_samples["M_crit"].values
+a_vals = unique_samples["a"].values
 
+
+
+def plot_cell_traces(df: pd.DataFrame, moment: str, mi: int, fig, row=0, col=0):
+    for sid in range(df["sample_id"].nunique()):
+        sample_df = df[df["sample_id"] == sid].sort_values("gen")
+        fig.add_trace(
+            go.Scatter(
+                x=sample_df["gen"].values,
+                y=sample_df[moment].values,
+                mode="lines",
+                line=dict(color=colors[mi], width=1),
+                opacity=0.35,
+                hoverinfo="text",
+                text=[
+                    f"sid={sid}<br>k_syn={k_syn_vals[sid]:.3f}<br>M_crit={M_crit_vals[sid]:.1f}<br>a={a_vals[sid]:.2f}<br>{moment}={v:.2f}"
+                    for v in sample_df[moment].values
+                ],
+                name=f"{moment}_ts_{sid}",
+                showlegend=False,
+                legendgroup=moment,
+            ),
+            row=row,
+            col=col,
+        )
+    return None
+
+
+def plot_moment_params(df: pd.DataFrame, moment: str, fig, param1: str, param2: str, mi: int, param_idx: int, g: int, row=0, col=0, colorbar=False):
+    # Colorbar positions for 3 param spaces per row
+    colorbar_x = 1.02
+    colorbar_len = 0.12
+
+    if colorbar:
+        cbar = dict(
+            title=moment,
+            title_font=dict(size=11),
+            x=colorbar_x,
+            y=0.95 - mi * 0.20,
+            len=colorbar_len,
+            thickness=15,
+            tickfont=dict(size=10),
+        )
+    else:
+        cbar = None
+    
+    fig.add_trace(
+        go.Scatter(
+            x=df[param1].values,
+            y=df[param2].values,
+            mode="markers",
+            marker = dict(
+                color=df[moment].values,
+                colorscale=colorscales[mi],
+                opacity=0.8,
+                colorbar=cbar,
+            ),
+            customdata=np.column_stack(
+                [
+                    df["sample_id"].values,
+                    df["k_syn"].values,
+                    df["M_crit"].values,
+                    df["a"].values,
+                ]
+            ),
+            hovertemplate="<b>sample_id: %{customdata[0]}</b><br>"
+            + "k_syn: %{customdata[1]:.3f}<br>"
+            + "M_crit: %{customdata[2]:.1f}<br>"
+            + "a: %{customdata[3]:.2f}<br>"
+            + f"{moment}: %{{marker.color:.2f}}<extra></extra>",
+            name=f"param_g{g}_{moment}_{param1}_{param2}",
+            showlegend=False,
+            legendgroup=moment,
+            visible=(g == 0),
+        ),
+        row=row,
+        col=col,
+    )
+    return None
+
+def create_dashboard(df: pd.DataFrame, output_file="lineage_sims.html"):
+    # Add new visualization for time-evolution of probability distribution
+    
     n_samples = df["sample_id"].nunique()
     n_gens = df["gen"].max() + 1
 
@@ -67,7 +152,7 @@ def create_dashboard(df, output_file="lineage_sims.html"):
             ],
         ],
         horizontal_spacing=0.05,
-        vertical_spacing=0.06,
+        vertical_spacing=0.10,
     )
 
     ts_per_moment = n_samples
@@ -75,142 +160,22 @@ def create_dashboard(df, output_file="lineage_sims.html"):
     param_start_idx = len(moments) * ts_per_moment
 
     for mi, moment in enumerate(moments):
-        for sid in range(n_samples):
-            sample_df = df[df["sample_id"] == sid].sort_values("gen")
-            fig.add_trace(
-                go.Scatter(
-                    x=sample_df["gen"].values,
-                    y=sample_df[moment].values,
-                    mode="lines",
-                    line=dict(color=colors[mi], width=1),
-                    opacity=0.35,
-                    hoverinfo="text",
-                    text=[
-                        f"sid={sid}<br>k_syn={k_syn_vals[sid]:.3f}<br>M_crit={M_crit_vals[sid]:.1f}<br>a={a_vals[sid]:.2f}<br>{moment}={v:.2f}"
-                        for v in sample_df[moment].values
-                    ],
-                    name=f"{moment}_ts_{sid}",
-                    showlegend=False,
-                    legendgroup=moment,
-                ),
-                row=mi + 1,
-                col=1,
-            )
-
-    # Colorbar positions for 3 param spaces per row
-    colorbar_x = 1.02
-    colorbar_len = 0.18
+        plot_cell_traces(df, moment, mi, fig, row=mi+1, col=1)
 
     for g in range(n_gens):
         gen_df = df[df["gen"] == g].sort_values("sample_id")
         for mi, moment in enumerate(moments):
             # Col 2: M_crit vs. k_syn
             param_idx = param_start_idx + g * param_per_gen + mi * 3
-            fig.add_trace(
-                go.Scatter(
-                    x=gen_df["k_syn"].values,
-                    y=gen_df["M_crit"].values,
-                    mode="markers",
-                    marker=dict(
-                        color=gen_df[moment].values,
-                        colorscale=colorscales[mi],
-                        opacity=0.8,
-                        colorbar=dict(
-                            title=moment,
-                            x=colorbar_x,
-                            len=colorbar_len,
-                            y=0.9 - mi * 0.22,
-                        ),
-                    ),
-                    customdata=np.column_stack(
-                        [
-                            gen_df["sample_id"].values,
-                            gen_df["k_syn"].values,
-                            gen_df["M_crit"].values,
-                            gen_df["a"].values,
-                        ]
-                    ),
-                    hovertemplate="<b>sample_id: %{customdata[0]}</b><br>"
-                    + "k_syn: %{customdata[1]:.3f}<br>"
-                    + "M_crit: %{customdata[2]:.1f}<br>"
-                    + "a: %{customdata[3]:.2f}<br>"
-                    + f"{moment}: %{{marker.color:.2f}}<extra></extra>",
-                    name=f"param_g{g}_{moment}_ksyn_mcrit",
-                    showlegend=False,
-                    legendgroup=moment,
-                    visible=(g == 0),
-                ),
-                row=mi + 1,
-                col=2,
-            )
+            plot_moment_params(gen_df, moment, fig, "k_syn", "M_crit", mi, param_idx, g, row=mi+1, col=2, colorbar=True)
 
             # Col 3: M_crit vs. a
             param_idx = param_start_idx + g * param_per_gen + mi * 3 + 1
-            fig.add_trace(
-                go.Scatter(
-                    x=gen_df["a"].values,
-                    y=gen_df["M_crit"].values,
-                    mode="markers",
-                    marker=dict(
-                        color=gen_df[moment].values,
-                        colorscale=colorscales[mi],
-                        opacity=0.8,
-                    ),
-                    customdata=np.column_stack(
-                        [
-                            gen_df["sample_id"].values,
-                            gen_df["k_syn"].values,
-                            gen_df["M_crit"].values,
-                            gen_df["a"].values,
-                        ]
-                    ),
-                    hovertemplate="<b>sample_id: %{customdata[0]}</b><br>"
-                    + "k_syn: %{customdata[1]:.3f}<br>"
-                    + "M_crit: %{customdata[2]:.1f}<br>"
-                    + "a: %{customdata[3]:.2f}<br>"
-                    + f"{moment}: %{{marker.color:.2f}}<extra></extra>",
-                    name=f"param_g{g}_{moment}_a_mcrit",
-                    showlegend=False,
-                    legendgroup=moment,
-                    visible=(g == 0),
-                ),
-                row=mi + 1,
-                col=3,
-            )
+            plot_moment_params(gen_df, moment, fig, "M_crit", "a", mi, param_idx, g, row=mi+1, col=3)
 
             # Col 4: k_syn vs. a
             param_idx = param_start_idx + g * param_per_gen + mi * 3 + 2
-            fig.add_trace(
-                go.Scatter(
-                    x=gen_df["a"].values,
-                    y=gen_df["k_syn"].values,
-                    mode="markers",
-                    marker=dict(
-                        color=gen_df[moment].values,
-                        colorscale=colorscales[mi],
-                        opacity=0.8,
-                    ),
-                    customdata=np.column_stack(
-                        [
-                            gen_df["sample_id"].values,
-                            gen_df["k_syn"].values,
-                            gen_df["M_crit"].values,
-                            gen_df["a"].values,
-                        ]
-                    ),
-                    hovertemplate="<b>sample_id: %{customdata[0]}</b><br>"
-                    + "k_syn: %{customdata[1]:.3f}<br>"
-                    + "M_crit: %{customdata[2]:.1f}<br>"
-                    + "a: %{customdata[3]:.2f}<br>"
-                    + f"{moment}: %{{marker.color:.2f}}<extra></extra>",
-                    name=f"param_g{g}_{moment}_a_ksyn",
-                    showlegend=False,
-                    legendgroup=moment,
-                    visible=(g == 0),
-                ),
-                row=mi + 1,
-                col=4,
-            )
+            plot_moment_params(gen_df, moment, fig, "k_syn", "a", mi, param_idx, g, row=mi+1, col=4)
 
     def build_visibility(gen):
         vis = []
@@ -229,43 +194,47 @@ def create_dashboard(df, output_file="lineage_sims.html"):
         step_dict = {"args": [{"visible": build_visibility(g)}], "label": str(g)}
         slider_steps.append(step_dict)
 
+    gen_title = dict(title="Generation")
+    k_syn_title = dict(title="k_syn")
+    a_title = dict(title="k_a")
+    crit_title = dict(title="M_crit")
     fig.update_layout(
         title=dict(text="Inheritance Simulation Results", font=dict(size=16)),
         height=1400,
         width=1800,
         template="plotly_white",
-        xaxis=dict(title="Generation"),
+        xaxis=gen_title,
         yaxis=dict(title="Mean"),
-        xaxis2=dict(title="k_syn"),
-        yaxis2=dict(title="M_crit"),
-        xaxis3=dict(title="a"),
-        yaxis3=dict(title="M_crit"),
-        xaxis4=dict(title="a"),
-        yaxis4=dict(title="k_syn"),
-        xaxis5=dict(title="Generation"),
+        xaxis2=k_syn_title,
+        yaxis2=crit_title,
+        xaxis3=a_title,
+        yaxis3=crit_title,
+        xaxis4=a_title,
+        yaxis4=k_syn_title,
+        xaxis5=gen_title,
         yaxis5=dict(title="Variance"),
-        xaxis6=dict(title="k_syn"),
-        yaxis6=dict(title="M_crit"),
-        xaxis7=dict(title="a"),
-        yaxis7=dict(title="M_crit"),
-        xaxis8=dict(title="a"),
-        yaxis8=dict(title="k_syn"),
-        xaxis9=dict(title="Generation"),
+        xaxis6=k_syn_title,
+        yaxis6=crit_title,
+        xaxis7=a_title,
+        yaxis7=crit_title,
+        xaxis8=a_title,
+        yaxis8=k_syn_title,
+        xaxis9=gen_title,
         yaxis9=dict(title="Skewness"),
-        xaxis10=dict(title="k_syn"),
-        yaxis10=dict(title="M_crit"),
-        xaxis11=dict(title="a"),
-        yaxis11=dict(title="M_crit"),
-        xaxis12=dict(title="a"),
-        yaxis12=dict(title="k_syn"),
-        xaxis13=dict(title="Generation"),
+        xaxis10=k_syn_title,
+        yaxis10=crit_title,
+        xaxis11=a_title,
+        yaxis11=crit_title,
+        xaxis12=a_title,
+        yaxis12=k_syn_title,
+        xaxis13=gen_title,
         yaxis13=dict(title="Kurtosis"),
-        xaxis14=dict(title="k_syn"),
-        yaxis14=dict(title="M_crit"),
-        xaxis15=dict(title="a"),
-        yaxis15=dict(title="M_crit"),
-        xaxis16=dict(title="a"),
-        yaxis16=dict(title="k_syn"),
+        xaxis14=k_syn_title,
+        yaxis14=crit_title,
+        xaxis15=a_title,
+        yaxis15=crit_title,
+        xaxis16=a_title,
+        yaxis16=k_syn_title,
         sliders=[
             dict(
                 active=0,
